@@ -2,26 +2,51 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Custom March Madness Bracket</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom March Madness</title>
+
 <style>
-body{font-family:Arial;margin:20px}
-.box{border:1px solid black;padding:4px;margin:4px}
-.correct{background:green;color:white}
-.wrong{background:red;color:white}
+
+body{
+    font-family: Arial;
+    background:white;
+}
+
+.region{
+    border:1px solid black;
+    padding:10px;
+    margin:10px;
+    display:inline-block;
+    vertical-align:top;
+}
+
+.game{
+    margin:4px;
+}
+
+.correct{
+    background:green;
+    color:white;
+}
+
+.wrong{
+    background:red;
+    color:white;
+}
+
 </style>
 </head>
 <body>
 
-<h1>Custom March Madness Bracket</h1>
+<h1>Custom March Madness</h1>
 
 <div id="bracket"></div>
 
-<button onclick="submitBracket()">Submit bracket</button>
+<button onclick="submitBracket()">Submit Bracket</button>
 
 <hr>
 
 <h2>Admin</h2>
+
 <input type="password" id="pw">
 <button onclick="login()">Login</button>
 
@@ -29,89 +54,189 @@ body{font-family:Arial;margin:20px}
 
 <script>
 
-const ADMIN_PASSWORD = "letmein";
-const MASTER_KEY = "masterResults";
 
-const teams = [];
-for(let i=1;i<=64;i++){
- teams.push({id:i,name:"Team "+i,seed:i});
+const ADMIN_PASSWORD = "letmein"
+const MASTER_KEY = "masterResults"
+
+
+const regions = ["North","South","East","West"]
+
+
+// -------- TEAMS --------
+
+const teams = []
+
+let id = 1
+
+for(let r=0;r<4;r++){
+
+    for(let s=1;s<=16;s++){
+
+        teams.push({
+
+            id:id,
+            region:r,
+            seed:s,
+            name:"Team "+id
+
+        })
+
+        id++
+
+    }
+
 }
 
-const matches = {};
-for(let i=1;i<=63;i++){
- matches[i]={left:i*2-1,right:i*2};
-}
 
-let picks = {};
+// real seeding order
+
+const order = [
+
+1,16,
+8,9,
+5,12,
+4,13,
+6,11,
+3,14,
+7,10,
+2,15
+
+]
+
+
+
+let picks = {}
+
+
+
+// ---------- DRAW ----------
 
 function draw(){
- const div=document.getElementById("bracket");
- div.innerHTML="";
- 
- for(let i=1;i<=32;i++){
-  const d=document.createElement("div");
-  d.className="box";
-  
-  const s=document.createElement("select");
-  
-  const t1=teams[i*2-2];
-  const t2=teams[i*2-1];
-  
-  const o1=document.createElement("option");
-  o1.value=t1.id;
-  o1.text=t1.seed+" "+t1.name;
-  
-  const o2=document.createElement("option");
-  o2.value=t2.id;
-  o2.text=t2.seed+" "+t2.name;
-  
-  s.appendChild(o1);
-  s.appendChild(o2);
-  
-  s.onchange=()=>{picks[i]=s.value};
-  
-  d.appendChild(s);
-  div.appendChild(d);
- }
+
+    const div = document.getElementById("bracket")
+
+    div.innerHTML = ""
+
+
+    for(let r=0;r<4;r++){
+
+        const box = document.createElement("div")
+
+        box.className="region"
+
+        box.innerHTML="<h3>"+regions[r]+"</h3>"
+
+        const regionTeams = teams.filter(t=>t.region==r)
+
+
+        for(let i=0;i<8;i++){
+
+            const seed1 = order[i*2]
+            const seed2 = order[i*2+1]
+
+            const t1 = regionTeams.find(t=>t.seed==seed1)
+            const t2 = regionTeams.find(t=>t.seed==seed2)
+
+            const gameId = r+"-"+i
+
+            const g = document.createElement("div")
+
+            g.className="game"
+
+            const s = document.createElement("select")
+
+            const o1 = document.createElement("option")
+            o1.value=t1.id
+            o1.text="("+t1.seed+") "+t1.name
+
+            const o2 = document.createElement("option")
+            o2.value=t2.id
+            o2.text="("+t2.seed+") "+t2.name
+
+            s.appendChild(o1)
+            s.appendChild(o2)
+
+            s.onchange=()=>{
+
+                picks[gameId]=s.value
+
+            }
+
+            g.appendChild(s)
+
+            box.appendChild(g)
+
+        }
+
+        div.appendChild(box)
+
+    }
+
 }
+
+
 
 function submitBracket(){
- const key="user_"+Date.now();
- localStorage.setItem(key,JSON.stringify(picks));
- 
- const w=window.open();
- w.document.write("<h1>Bracket saved</h1>");
+
+    const key="user_"+Date.now()
+
+    localStorage.setItem(key,JSON.stringify(picks))
+
+    const w = window.open()
+
+    w.document.write("<h1>Bracket saved</h1>")
+
 }
+
+
+
+// ---------- ADMIN ----------
 
 function login(){
- const p=document.getElementById("pw").value;
- if(p!==ADMIN_PASSWORD)return;
- 
- const a=document.getElementById("admin");
- a.innerHTML="";
- 
- for(let i=1;i<=32;i++){
-  const s=document.createElement("select");
-  
-  teams.forEach(t=>{
-   const o=document.createElement("option");
-   o.value=t.id;
-   o.text=t.name;
-   s.appendChild(o);
-  });
-  
-  s.onchange=()=>{
-   let m=JSON.parse(localStorage.getItem(MASTER_KEY)||"{}");
-   m[i]=s.value;
-   localStorage.setItem(MASTER_KEY,JSON.stringify(m));
-  }
-  
-  a.appendChild(s);
- }
+
+    const p=document.getElementById("pw").value
+
+    if(p!=ADMIN_PASSWORD)return
+
+
+    const a=document.getElementById("admin")
+
+    a.innerHTML=""
+
+    for(let i=0;i<32;i++){
+
+        const s=document.createElement("select")
+
+        teams.forEach(t=>{
+
+            const o=document.createElement("option")
+
+            o.value=t.id
+
+            o.text="("+t.seed+") "+t.name
+
+            s.appendChild(o)
+
+        })
+
+        s.onchange=()=>{
+
+            let m = JSON.parse(localStorage.getItem(MASTER_KEY)||"{}")
+
+            m[i]=s.value
+
+            localStorage.setItem(MASTER_KEY,JSON.stringify(m))
+
+        }
+
+        a.appendChild(s)
+
+    }
+
 }
 
 
-draw();
+draw()
 
 </script>
 
