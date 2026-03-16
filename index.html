@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Custom March Madness Bracket</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:Arial;margin:20px}
+.box{border:1px solid black;padding:4px;margin:4px}
+.correct{background:green;color:white}
+.wrong{background:red;color:white}
+</style>
+</head>
+<body>
+
+<h1>Custom March Madness Bracket</h1>
+
+<div id="bracket"></div>
+
+<button onclick="submitBracket()">Submit bracket</button>
+
+<hr>
+
+<h2>Admin</h2>
+<input type="password" id="pw">
+<button onclick="login()">Login</button>
+
+<div id="admin"></div>
+
+<script>
+
+const ADMIN_PASSWORD = "letmein";
+const MASTER_KEY = "masterResults";
+
+const teams = [];
+for(let i=1;i<=64;i++){
+ teams.push({id:i,name:"Team "+i,seed:i});
+}
+
+const matches = {};
+for(let i=1;i<=63;i++){
+ matches[i]={left:i*2-1,right:i*2};
+}
+
+let picks = {};
+
+function draw(){
+ const div=document.getElementById("bracket");
+ div.innerHTML="";
+ 
+ for(let i=1;i<=32;i++){
+  const d=document.createElement("div");
+  d.className="box";
+  
+  const s=document.createElement("select");
+  
+  const t1=teams[i*2-2];
+  const t2=teams[i*2-1];
+  
+  const o1=document.createElement("option");
+  o1.value=t1.id;
+  o1.text=t1.seed+" "+t1.name;
+  
+  const o2=document.createElement("option");
+  o2.value=t2.id;
+  o2.text=t2.seed+" "+t2.name;
+  
+  s.appendChild(o1);
+  s.appendChild(o2);
+  
+  s.onchange=()=>{picks[i]=s.value};
+  
+  d.appendChild(s);
+  div.appendChild(d);
+ }
+}
+
+function submitBracket(){
+ const key="user_"+Date.now();
+ localStorage.setItem(key,JSON.stringify(picks));
+ 
+ const w=window.open();
+ w.document.write("<h1>Bracket saved</h1>");
+}
+
+function login(){
+ const p=document.getElementById("pw").value;
+ if(p!==ADMIN_PASSWORD)return;
+ 
+ const a=document.getElementById("admin");
+ a.innerHTML="";
+ 
+ for(let i=1;i<=32;i++){
+  const s=document.createElement("select");
+  
+  teams.forEach(t=>{
+   const o=document.createElement("option");
+   o.value=t.id;
+   o.text=t.name;
+   s.appendChild(o);
+  });
+  
+  s.onchange=()=>{
+   let m=JSON.parse(localStorage.getItem(MASTER_KEY)||"{}");
+   m[i]=s.value;
+   localStorage.setItem(MASTER_KEY,JSON.stringify(m));
+  }
+  
+  a.appendChild(s);
+ }
+}
+
+
+draw();
+
+</script>
+
+</body>
+</html>
