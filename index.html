@@ -5,8 +5,8 @@
 <title>Custom March Madness Bracket</title>
 <style>
 body{font-family:Arial,sans-serif;margin:10px;}
-.bracket{display:flex;justify-content:space-between;}
-.region{display:flex;flex-direction:column;align-items:center;margin:0 5px;}
+.bracket-container{display:flex;justify-content:space-between;}
+.quadrant{border:1px solid black;padding:5px;margin:5px;flex:1;}
 .round{display:flex;flex-direction:column;align-items:center;margin:5px 0;}
 .game{border:1px solid black;padding:5px;margin:5px;width:140px;text-align:center;position:relative;}
 .game select{width:100%;}
@@ -18,7 +18,7 @@ body{font-family:Arial,sans-serif;margin:10px;}
 </head>
 <body>
 <h1>Custom March Madness Bracket</h1>
-<div class="bracket" id="bracket"></div>
+<div class="bracket-container" id="bracket"></div>
 <button onclick="submitBracket()">Submit Bracket</button>
 <hr>
 <h2>Admin</h2>
@@ -50,11 +50,12 @@ let masterResults=JSON.parse(localStorage.getItem(MASTER_KEY)||'{}');
 let gameMap={};
 let bracket={};
 
-// --- BRACKET STRUCTURE ---
+// --- BUILD BRACKET STRUCTURE ---
 regions.forEach((reg,rIdx)=>{
   bracket[reg]=[];
-  for(let rnd=0;rnd<4;rnd++) bracket[reg][rnd]=[];
+  for(let rnd=0;rnd<6;rnd++) bracket[reg][rnd]=[];
 });
+
 // Round of 64
 regions.forEach((reg,rIdx)=>{
   const rTeams=teams.filter(t=>t.region==rIdx);
@@ -66,9 +67,10 @@ regions.forEach((reg,rIdx)=>{
     gameMap[gameId]={left:t1.id,right:t2.id};
   }
 });
-// Next rounds in each region
+
+// Generate next rounds in each quadrant
 regions.forEach((reg)=>{
-  for(let rnd=1;rnd<4;rnd++){
+  for(let rnd=1;rnd<6;rnd++){
     const prev=bracket[reg][rnd-1];
     for(let i=0;i<prev.length/2;i++){
       const gameId=`${reg}-r${rnd}-g${i}`;
@@ -77,10 +79,11 @@ regions.forEach((reg)=>{
     }
   }
 });
+
 // Final Four & Championship
 bracket['FF']=[
-  {id:'FF-r0-g0',left:bracket['North'][3][0].id,right:bracket['South'][3][0].id},
-  {id:'FF-r0-g1',left:bracket['East'][3][0].id,right:bracket['West'][3][0].id}
+  {id:'FF-r0-g0',left:bracket['North'][5][0].id,right:bracket['South'][5][0].id},
+  {id:'FF-r0-g1',left:bracket['East'][5][0].id,right:bracket['West'][5][0].id}
 ];
 bracket['Final']=[{id:'Champ',left:'FF-r0-g0',right:'FF-r0-g1'}];
 bracket['FF'].forEach(g=>gameMap[g.id]={left:g.left,right:g.right});
@@ -89,6 +92,7 @@ bracket['Final'].forEach(g=>gameMap[g.id]={left:g.left,right:g.right});
 // --- HELPERS ---
 let teamMap={}; teams.forEach(t=>teamMap[t.id]=t);
 function resolve(id){return teamMap[id]?teamMap[id]:(picks[id]?teamMap[picks[id]]:{id:0,name:'?'});}
+
 function drawGame(g){
   const div=document.createElement('div'); div.className='game';
   const s=document.createElement('select');
@@ -98,7 +102,7 @@ function drawGame(g){
   s.value=picks[g.id]||'';
   s.onchange=()=>{picks[g.id]=s.value; renderBracket();};
   div.appendChild(s);
-  // color for admin results
+
   if(masterResults[g.id]){
     if(picks[g.id]===masterResults[g.id]) div.className='game correct';
     else if(picks[g.id]) div.className='game wrong';
@@ -107,42 +111,49 @@ function drawGame(g){
   return div;
 }
 
-// --- RENDER ---
+// --- RENDER BRACKET ---
 function renderBracket(){
   const container=document.getElementById('bracket'); container.innerHTML='';
   regions.forEach(reg=>{
-    const rDiv=document.createElement('div'); rDiv.className='region';
+    const qDiv=document.createElement('div'); qDiv.className='quadrant';
     const rounds=bracket[reg];
     rounds.forEach(rnd=>{
       const rdDiv=document.createElement('div'); rdDiv.className='round';
-      rnd.forEach(g=>{rdDiv.appendChild(drawGame(g)); rdDiv.appendChild(document.createElement('div')).className='connector';});
-      rDiv.appendChild(rdDiv);
+      rnd.forEach(g=>{
+        rdDiv.appendChild(drawGame(g));
+        if(rnd!=rounds.length-1){
+          const conn=document.createElement('div'); conn.className='connector'; rdDiv.appendChild(conn);
+        }
+      });
+      qDiv.appendChild(rdDiv);
     });
-    container.appendChild(rDiv);
+    container.appendChild(qDiv);
   });
-  // Final Four + Champ
+
   ['FF','Final'].forEach(stage=>{
-    const rDiv=document.createElement('div'); rDiv.className='region';
-    bracket[stage].forEach(rnd=>{ rnd.forEach(g=>{rDiv.appendChild(drawGame(g));}); });
-    container.appendChild(rDiv);
+    const div=document.createElement('div'); div.className='quadrant';
+    bracket[stage].forEach(rnd=>{ rnd.forEach(g=>{div.appendChild(drawGame(g));});});
+    container.appendChild(div);
   });
 }
 
 // --- SUBMIT ---
 function submitBracket(){
   const key='user_'+Date.now(); localStorage.setItem(key,JSON.stringify(picks));
-  const w=window.open(); w.document.write('<h1>Bracket saved!</h1>');
+  const w=window.open();
+  w.document.write('<h1>Your Bracket</h1>');
+  w.document.write('<pre>'+JSON.stringify(picks,null,2)+'</pre>');
 }
 
 // --- ADMIN ---
 function login(){
-  const p=document.getElementById('pw').value; if(p!==ADMIN_PASSWORD) return;
+  const p=document.getElementById('pw').value; if(p!==ADMIN_PASSWORD)return;
   const a=document.getElementById('admin'); a.innerHTML='';
   Object.keys(gameMap).forEach(gid=>{
     const s=document.createElement('select');
     Object.values(teamMap).forEach(t=>{const o=document.createElement('option');o.value=t.id;o.text=t.name;s.appendChild(o);});
     s.value=masterResults[gid]||'';
-    s.onchange=()=>{masterResults[gid]=s.value; localStorage.setItem(MASTER_KEY,JSON.stringify(masterResults)); renderBracket();};
+    s.onchange=()=>{ masterResults[gid]=s.value; localStorage.setItem(MASTER_KEY,JSON.stringify(masterResults)); renderBracket(); };
     a.appendChild(document.createTextNode(gid+' ')); a.appendChild(s); a.appendChild(document.createElement('br'));
   });
 }
