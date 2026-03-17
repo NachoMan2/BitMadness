@@ -147,7 +147,6 @@ body {
 
 <script>
 
-
 const seedOrder = [
   1,16,
   8,9,
@@ -159,33 +158,20 @@ const seedOrder = [
   2,15
 ]
 
-const regions = [
-  "North",
-  "South",
-  "East",
-  "West"
-]
-
-
 let teams = []
 
 let id = 1
 
 for (let r=0;r<4;r++) {
-
   for (let s=1;s<=16;s++) {
-
     teams.push({
       id:id,
       region:r,
       seed:s,
       name:"Seed "+s+" Team "+id
     })
-
     id++
-
   }
-
 }
 
 
@@ -209,12 +195,35 @@ function createGame(t1,t2){
 }
 
 
+function createDropdown(){
+
+  let g = document.createElement("div")
+  g.className="game"
+
+  let select = document.createElement("select")
+
+  let blank = document.createElement("option")
+  blank.textContent = "Select"
+  blank.value = ""
+
+  select.appendChild(blank)
+
+  g.appendChild(select)
+
+  return g
+}
+
+
 function drawRegion(regionIndex, sideDiv){
 
   let regionTeams = teams.filter(t=>t.region===regionIndex)
 
+  // ROUND 64
+
   let r64 = document.createElement("div")
   r64.className="round r64"
+
+  let firstRoundTeams = []
 
   for(let i=0;i<8;i++){
 
@@ -226,20 +235,38 @@ function drawRegion(regionIndex, sideDiv){
 
     r64.appendChild(createGame(t1,t2))
 
+    firstRoundTeams.push(t1, t2)
+
   }
+
+
+  // ROUND 32
 
   let r32 = document.createElement("div")
   r32.className="round r32"
 
+  for(let i=0;i<4;i++){
+    r32.appendChild(createDropdown())
+  }
+
+
+  // SWEET 16
+
   let r16 = document.createElement("div")
   r16.className="round r16"
+
+  for(let i=0;i<2;i++){
+    r16.appendChild(createDropdown())
+  }
+
+
+  // ELITE 8
 
   let r8 = document.createElement("div")
   r8.className="round r8"
 
-  for(let i=0;i<4;i++) r32.appendChild(document.createElement("div")).className="game"
-  for(let i=0;i<2;i++) r16.appendChild(document.createElement("div")).className="game"
-  for(let i=0;i<1;i++) r8.appendChild(document.createElement("div")).className="game"
+  r8.appendChild(createDropdown())
+
 
   sideDiv.appendChild(r64)
   sideDiv.appendChild(r32)
@@ -265,21 +292,47 @@ function drawBracket(){
   drawRegion(2,right)
   drawRegion(3,right)
 
+
+  // FINAL FOUR
+
   let final4 = document.createElement("div")
   final4.className="game"
-  final4.textContent="Final Four"
+
+  let fSelect = document.createElement("select")
+  fSelect.innerHTML = "<option>Select</option>"
+
+  final4.appendChild(fSelect)
+
+
+  // CHAMPIONSHIP
+
+  let champGame = document.createElement("div")
+  champGame.className="game"
+
+  let cSelect = document.createElement("select")
+  cSelect.innerHTML = "<option>Select</option>"
+
+  champGame.appendChild(cSelect)
+
+
+  // CHAMPION
 
   let champ = document.createElement("div")
   champ.className="game"
-  champ.textContent="Champion"
+
+  let winner = document.createElement("select")
+  winner.innerHTML = "<option>Champion</option>"
+
+  champ.appendChild(winner)
+
 
   center.appendChild(final4)
+  center.appendChild(champGame)
   center.appendChild(champ)
 
 }
 
 drawBracket()
-
 
 </script>
 
