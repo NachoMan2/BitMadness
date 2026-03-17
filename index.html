@@ -2,267 +2,284 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Custom March Madness Bracket</title>
+<title>Bracket Layout</title>
 
 <style>
+
 body {
   font-family: Arial;
 }
 
 #bracket {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
 }
 
-.region {
-  border: 2px solid black;
-  padding: 5px;
+.side {
+  display: grid;
+  grid-template-columns: repeat(4, 180px);
+  gap: 20px;
+}
+
+/* flip right side */
+#right {
+  direction: rtl;
+}
+
+#right .round {
+  direction: ltr;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 .round {
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  position: relative;
 }
 
 .game {
-  border: 1px solid black;
-  margin: 4px;
+  border: 2px solid black;
   padding: 4px;
-  width: 150px;
+  margin: 6px 0;
+  width: 160px;
+  background: white;
+  position: relative;
 }
 
-select {
-  width: 100%;
+.team {
+  font-size: 12px;
 }
 
-.correct { background: green; color: white; }
-.wrong { background: red; color: white; }
+/* spacing */
+
+.r64 .game { margin: 4px 0; }
+.r32 .game { margin: 18px 0; }
+.r16 .game { margin: 40px 0; }
+.r8  .game { margin: 80px 0; }
+
+
+/* ---------- CONNECTOR LINES ---------- */
+
+.game::after {
+  content: "";
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  width: 20px;
+  height: 2px;
+  background: black;
+}
+
+/* flip horizontal for right side */
+#right .game::after {
+  right: auto;
+  left: -20px;
+}
+
+
+/* vertical join */
+
+.round:not(:last-child) .game:nth-child(odd)::before {
+  content: "";
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  width: 2px;
+  height: 40px;
+  background: black;
+}
+
+.round:not(:last-child) .game:nth-child(even)::before {
+  content: "";
+  position: absolute;
+  right: -20px;
+  top: -40px;
+  width: 2px;
+  height: 40px;
+  background: black;
+}
+
+
+/* flip vertical for right side */
+
+#right .round:not(:last-child) .game:nth-child(odd)::before {
+  right: auto;
+  left: -20px;
+}
+
+#right .round:not(:last-child) .game:nth-child(even)::before {
+  right: auto;
+  left: -20px;
+}
+
+
+/* last column no line */
+
+.side .round:last-child .game::after {
+  display: none;
+}
 
 </style>
+
 </head>
 <body>
 
 <h1>Custom March Madness Bracket</h1>
 
-<div id="bracket"></div>
+<div id="bracket">
 
-<button onclick="submitBracket()">Submit Bracket</button>
+  <div class="side" id="left"></div>
 
-<hr>
+  <div class="center" id="center"></div>
 
-<h2>Admin</h2>
+  <div class="side" id="right"></div>
 
-<input id="pw" type="password">
-<button onclick="login()">Login</button>
-
-<div id="admin"></div>
+</div>
 
 
 <script>
 
-const ADMIN_PASSWORD = "letmein"
-const MASTER_KEY = "masterResults"
 
-const regions = ["North","South","East","West"]
+const seedOrder = [
+  1,16,
+  8,9,
+  5,12,
+  4,13,
+  6,11,
+  3,14,
+  7,10,
+  2,15
+]
 
-const seedOrder = [1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15]
+const regions = [
+  "North",
+  "South",
+  "East",
+  "West"
+]
+
 
 let teams = []
+
 let id = 1
 
 for (let r=0;r<4;r++) {
+
   for (let s=1;s<=16;s++) {
+
     teams.push({
       id:id,
       region:r,
       seed:s,
       name:"Seed "+s+" Team "+id
     })
+
     id++
-  }
-}
 
-let picks = {}
-let master = JSON.parse(localStorage.getItem(MASTER_KEY) || "{}")
-
-let games = []
-
-function makeGame(id,left,right,round,region){
-  games.push({id,left,right,round,region})
-}
-
-function buildBracket(){
-
-  regions.forEach((reg,r)=>{
-
-    let rTeams = teams.filter(t=>t.region==r)
-
-    let g = []
-
-    for (let i=0;i<8;i++){
-
-      let t1 = rTeams.find(t=>t.seed==seedOrder[i*2])
-      let t2 = rTeams.find(t=>t.seed==seedOrder[i*2+1])
-
-      let gid = reg+"_r0_"+i
-
-      makeGame(gid,t1.id,t2.id,0,reg)
-
-      g.push(gid)
-    }
-
-    let round = 1
-
-    while (g.length>1){
-
-      let next=[]
-
-      for (let i=0;i<g.length;i+=2){
-
-        let gid = reg+"_r"+round+"_"+i
-
-        makeGame(gid,g[i],g[i+1],round,reg)
-
-        next.push(gid)
-      }
-
-      g=next
-      round++
-    }
-
-  })
-
-}
-
-buildBracket()
-
-let teamMap={}
-teams.forEach(t=>teamMap[t.id]=t)
-
-function resolve(x){
-
-  // If this is already a team id, return team
-  if (teamMap[x]) {
-    return teamMap[x]
   }
 
-  // If this is a game id, use the picked winner
-  if (picks[x] && teamMap[picks[x]]) {
-    return teamMap[picks[x]]
+}
+
+
+function createGame(t1,t2){
+
+  let g = document.createElement("div")
+  g.className="game"
+
+  let a = document.createElement("div")
+  a.className="team"
+  a.textContent="("+t1.seed+") "+t1.name
+
+  let b = document.createElement("div")
+  b.className="team"
+  b.textContent="("+t2.seed+") "+t2.name
+
+  g.appendChild(a)
+  g.appendChild(b)
+
+  return g
+}
+
+
+function drawRegion(regionIndex, sideDiv){
+
+  let regionTeams = teams.filter(t=>t.region===regionIndex)
+
+  let r64 = document.createElement("div")
+  r64.className="round r64"
+
+  for(let i=0;i<8;i++){
+
+    let s1 = seedOrder[i*2]
+    let s2 = seedOrder[i*2+1]
+
+    let t1 = regionTeams.find(t=>t.seed===s1)
+    let t2 = regionTeams.find(t=>t.seed===s2)
+
+    r64.appendChild(createGame(t1,t2))
+
   }
 
-  // Otherwise blank
-  return {id:0,name:""}
-}
+  let r32 = document.createElement("div")
+  r32.className="round r32"
 
-function drawGame(g){
+  let r16 = document.createElement("div")
+  r16.className="round r16"
 
-  let div = document.createElement("div")
-  div.className="game"
+  let r8 = document.createElement("div")
+  r8.className="round r8"
 
-  let s = document.createElement("select")
+  for(let i=0;i<4;i++) r32.appendChild(document.createElement("div")).className="game"
+  for(let i=0;i<2;i++) r16.appendChild(document.createElement("div")).className="game"
+  for(let i=0;i<1;i++) r8.appendChild(document.createElement("div")).className="game"
 
-  let a = resolve(g.left)
-  let b = resolve(g.right)
-
-  ;[a,b].forEach(t=>{
-    let o=document.createElement("option")
-    o.value=t.id
-    o.text=t.name
-    s.appendChild(o)
-  })
-
-  s.value = picks[g.id] || ""
-
-  s.onchange=()=>{
-    picks[g.id]=s.value
-    render()
-  }
-
-  div.appendChild(s)
-
-  if(master[g.id]){
-    if(picks[g.id]==master[g.id]) div.classList.add("correct")
-    else if(picks[g.id]) div.classList.add("wrong")
-  }
-
-  return div
-}
-
-function render(){
-
-  let root=document.getElementById("bracket")
-  root.innerHTML=""
-
-  regions.forEach(reg=>{
-
-    let box=document.createElement("div")
-    box.className="region"
-
-    let regGames=games.filter(g=>g.region==reg)
-
-    for(let r=0;r<4;r++){
-
-      let rd=document.createElement("div")
-      rd.className="round"
-
-      regGames
-        .filter(g=>g.round==r)
-        .forEach(g=>rd.appendChild(drawGame(g)))
-
-      box.appendChild(rd)
-    }
-
-    root.appendChild(box)
-  })
+  sideDiv.appendChild(r64)
+  sideDiv.appendChild(r32)
+  sideDiv.appendChild(r16)
+  sideDiv.appendChild(r8)
 
 }
 
-function submitBracket(){
 
-  let key="user_"+Date.now()
+function drawBracket(){
 
-  localStorage.setItem(key,JSON.stringify(picks))
+  let left = document.getElementById("left")
+  let right = document.getElementById("right")
+  let center = document.getElementById("center")
 
-  let w=window.open()
+  left.innerHTML=""
+  right.innerHTML=""
+  center.innerHTML=""
 
-  w.document.write("<h1>Your Picks</h1>")
-  w.document.write("<pre>"+JSON.stringify(picks,null,2)+"</pre>")
+  drawRegion(0,left)
+  drawRegion(1,left)
 
-}
+  drawRegion(2,right)
+  drawRegion(3,right)
 
-function login(){
+  let final4 = document.createElement("div")
+  final4.className="game"
+  final4.textContent="Final Four"
 
-  if(document.getElementById("pw").value!==ADMIN_PASSWORD) return
+  let champ = document.createElement("div")
+  champ.className="game"
+  champ.textContent="Champion"
 
-  let a=document.getElementById("admin")
-  a.innerHTML=""
-
-  games.forEach(g=>{
-
-    let s=document.createElement("select")
-
-    teams.forEach(t=>{
-      let o=document.createElement("option")
-      o.value=t.id
-      o.text=t.name
-      s.appendChild(o)
-    })
-
-    s.value=master[g.id]||""
-
-    s.onchange=()=>{
-      master[g.id]=s.value
-      localStorage.setItem(MASTER_KEY,JSON.stringify(master))
-      render()
-    }
-
-    a.append(g.id," ",s,document.createElement("br"))
-
-  })
+  center.appendChild(final4)
+  center.appendChild(champ)
 
 }
 
-render()
+drawBracket()
+
 
 </script>
 
