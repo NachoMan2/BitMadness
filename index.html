@@ -176,39 +176,24 @@ for (let r=0;r<4;r++) {
 
 
 
-function createGame(t1,t2,index,region){
-
+function createGame(t1, t2, index, region) {
   let g = document.createElement("div")
-  g.className="game"
+  g.className = "game"
 
-  let select = document.createElement("select")
+  // Team 1
+  let team1 = document.createElement("div")
+  team1.className = "team"
+  team1.textContent = "(" + t1.seed + ") " + t1.name
+  g.appendChild(team1)
 
-  let o1 = document.createElement("option")
-  o1.value = t1.name
-  o1.textContent = "("+t1.seed+") "+t1.name
+  // Team 2
+  let team2 = document.createElement("div")
+  team2.className = "team"
+  team2.textContent = "(" + t2.seed + ") " + t2.name
+  g.appendChild(team2)
 
-  let o2 = document.createElement("option")
-  o2.value = t2.name
-  o2.textContent = "("+t2.seed+") "+t2.name
-
-  select.appendChild(o1)
-  select.appendChild(o2)
-
-  select.onchange = () => {
-
-    let r32 = document.querySelectorAll(
-      `[data-region='${region}'][data-round='32'] select`
-    )
-
-    let target = Math.floor(index/2)
-
-    let opt = document.createElement("option")
-    opt.value = select.value
-    opt.textContent = select.value
-
-    r32[target].appendChild(opt)
-
-  }
+  return g
+}
 
   g.appendChild(select)
 
