@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>March Madness Bracket</title>
+<style>
+body{font-family:Arial;margin:0;padding:8px;}
+#bracket{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;}
+.side{display:grid;grid-template-columns:repeat(4,160px);gap:10px;}
+#right{direction:rtl;}
+#right .round{direction:ltr;}
+.center{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;min-width:180px;}
+.round{display:flex;flex-direction:column;justify-content:space-around;position:relative;}
+.game{border:1px solid #999;padding:3px;margin:4px 0;width:148px;background:#fff;position:relative;border-radius:3px;}
+.team{font-size:11px;padding:2px 3px;cursor:pointer;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.team:hover{background:#f0f0f0;}
+.team.selected{background:#cce5ff;color:#003d80;}
+.team.placeholder{color:#aaa;cursor:default;font-style:italic;}
+.r64 .game{margin:2px 0;}
+.r32 .game{margin:16px 0;}
+.r16 .game{margin:38px 0;}
+.r8  .game{margin:80px 0;}
+.game::after{content:"";position:absolute;right:-10px;top:50%;width:10px;height:1px;background:#999;}
+#right .game::after{right:auto;left:-10px;}
+.round:not(:last-child) .game:nth-child(odd)::before{content:"";position:absolute;right:-10px;top:50%;width:1px;height:42px;background:#999;}
+.round:not(:last-child) .game:nth-child(even)::before{content:"";position:absolute;right:-10px;bottom:50%;width:1px;height:42px;background:#999;}
+#right .round:not(:last-child) .game:nth-child(odd)::before{right:auto;left:-10px;}
+#right .round:not(:last-child) .game:nth-child(even)::before{right:auto;left:-10px;}
+.side .round:last-child .game::after{display:none;}
+.center-label{font-size:11px;color:#666;text-align:center;font-weight:500;}
+.champ-label{font-size:13px;font-weight:500;text-align:center;margin-top:4px;}
+#winner-display{border:1px solid #999;padding:6px 10px;border-radius:4px;min-width:148px;text-align:center;font-size:12px;color:#aaa;background:#f9f9f9;}
+</style>
+</head>
+<body>
+
+<h2 style="font-size:16px;font-weight:500;margin:0 0 12px;">March Madness Bracket</h2>
+<div id="bracket">
+  <div class="side" id="left"></div>
+  <div class="center" id="center"></div>
+  <div class="side" id="right"></div>
+</div>
+
+<script>
+const seedOrder = [1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
+const regionNames = ["East","West","South","Midwest"];
+
+let allTeams = [];
+let uid = 1;
+for (let r = 0; r < 4; r++) {
+  for (let s = 1; s <= 16; s++) {
+    allTeams.push({ id: uid++, region: r, seed: s, name: "Team " + uid });
+  }
+}
+
+let games = {};
+let gameIdCounter = 1;
+
+function newGame(nextGameId, nextSlot) {
+  let g = { id: gameIdCounter++, teams: [null, null], winner: null, nextGameId, nextSlot, el: null };
+  games[g.id] = g;
+  return g;
+}
+
+function renderGame(game) {
+  let el = game.el;
+  el.innerHTML = "";
+  for (let i = 0; i < 2; i++) {
+    let div = document.createElement("div");
+    let t = game.teams[i];
+    if (t) {
+      div.className = "team" + (game.winner === t ? " selected" : "");
+      div.textContent = "(" + t.seed + ") " + t.name;
+      div.onclick = () => selectWinner(game, t);
+    } else {
+      div.className = "team placeholder";
+      div.textContent = "TBD";
+    }
+    el.appendChild(div);
+  }
+}
+
+function selectWinner(game, team) {
+  game.winner = team;
+  renderGame(game);
+  if (game.nextGameId != null) {
+    let next = games[game.nextGameId];
+    next.teams[game.nextSlot] = team;
+    clearDownstream(next);
+    renderGame(next);
+  }
+  updateWinnerDisplay();
+}
+
+function clearDownstream(game) {
+  game.winner = null;
+  if (game.nextGameId != null) {
+    let next = games[game.nextGameId];
+    if (next.teams[game.nextSlot] !== null) {
+      next.teams[game.nextSlot] = null;
+      clearDownstream(next);
+    }
+  }
+}
+
+function makeGameEl(game) {
+  let el = document.createElement("div");
+  el.className = "game";
+  game.el = el;
+  renderGame(game);
+  return el;
+}
+
+let champGame;
+
+function updateWinnerDisplay() {
+  let el = document.getElementById("winner-display");
+  if (!el || !champGame) return;
+  let w = champGame.winner;
+  el.textContent = w ? "(" + w.seed + ") " + w.name : "TBD";
+  el.style.color = w ? "#000" : "#aaa";
+  el.style.fontWeight = w ? "500" : "400";
+}
+
+function buildRegion(regionIdx, sideDiv) {
+  let rTeams = allTeams.filter(t => t.region === regionIdx);
+
+  let rounds = ["r64","r32","r16","r8"].map(cls => {
+    let d = document.createElement("div");
+    d.className = "round " + cls;
+    return d;
+  });
+
+  let r8game = newGame(null, 0);
+  let r16games = [newGame(r8game.id, 0), newGame(r8game.id, 1)];
+  let r32games = [
+    newGame(r16games[0].id, 0), newGame(r16games[0].id, 1),
+    newGame(r16games[1].id, 0), newGame(r16games[1].id, 1)
+  ];
+
+  for (let i = 0; i < 8; i++) {
+    let s1 = seedOrder[i * 2], s2 = seedOrder[i * 2 + 1];
+    let t1 = rTeams.find(t => t.seed === s1);
+    let t2 = rTeams.find(t => t.seed === s2);
+    let g = newGame(r32games[Math.floor(i / 2)].id, i % 2);
+    g.teams[0] = t1;
+    g.teams[1] = t2;
+    rounds[0].appendChild(makeGameEl(g));
+  }
+
+  r32games.forEach(g => rounds[1].appendChild(makeGameEl(g)));
+  r16games.forEach(g => rounds[2].appendChild(makeGameEl(g)));
+  rounds[3].appendChild(makeGameEl(r8game));
+  rounds.forEach(r => sideDiv.appendChild(r));
+
+  return r8game;
+}
+
+function drawBracket() {
+  let left   = document.getElementById("left");
+  let right  = document.getElementById("right");
+  let center = document.getElementById("center");
+  left.innerHTML = ""; right.innerHTML = ""; center.innerHTML = "";
+
+  champGame = newGame(null, 0);
+  let semL = newGame(champGame.id, 0);
+  let semR = newGame(champGame.id, 1);
+
+  let lbl0 = document.createElement("div");
+  lbl0.className = "center-label";
+  lbl0.textContent = regionNames[0] + " / " + regionNames[1];
+  center.appendChild(lbl0);
+  center.appendChild(makeGameEl(semL));
+
+  let champLabel = document.createElement("div");
+  champLabel.className = "center-label";
+  champLabel.style.marginTop = "8px";
+  champLabel.textContent = "Championship";
+  center.appendChild(champLabel);
+  center.appendChild(makeGameEl(champGame));
+
+  let lbl1 = document.createElement("div");
+  lbl1.className = "center-label";
+  lbl1.textContent = regionNames[2] + " / " + regionNames[3];
+  center.appendChild(lbl1);
+  center.appendChild(makeGameEl(semR));
+
+  let winnerLabel = document.createElement("div");
+  winnerLabel.className = "champ-label";
+  winnerLabel.textContent = "Champion";
+  center.appendChild(winnerLabel);
+
+  let winnerEl = document.createElement("div");
+  winnerEl.id = "winner-display";
+  winnerEl.textContent = "TBD";
+  center.appendChild(winnerEl);
+
+  let r8L0 = buildRegion(0, left);
+  let r8L1 = buildRegion(1, left);
+  let r8R0 = buildRegion(2, right);
+  let r8R1 = buildRegion(3, right);
+
+  r8L0.nextGameId = semL.id; r8L0.nextSlot = 0;
+  r8L1.nextGameId = semL.id; r8L1.nextSlot = 1;
+  r8R0.nextGameId = semR.id; r8R0.nextSlot = 0;
+  r8R1.nextGameId = semR.id; r8R1.nextSlot = 1;
+}
+
+drawBracket();
+</script>
+
+</body>
+</html>
