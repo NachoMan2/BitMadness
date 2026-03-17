@@ -3,125 +3,262 @@
 <head>
 <meta charset="UTF-8">
 <title>Custom March Madness Bracket</title>
+
 <style>
-body{font-family:Arial,sans-serif;margin:10px;}
-.bracket-container{display:flex;justify-content:space-between;}
-.quadrant{border:1px solid black;padding:5px;margin:5px;display:grid;grid-template-columns:repeat(6,150px);gap:10px;}
-.game{border:1px solid black;padding:5px;text-align:center;position:relative;}
-.game select{width:100%;}
-.correct{background:green;color:white;}
-.wrong{background:red;color:white;}
-.neutral{background:#fff;color:#000;}
+body {
+  font-family: Arial;
+}
+
+#bracket {
+  display: flex;
+  gap: 20px;
+}
+
+.region {
+  border: 2px solid black;
+  padding: 5px;
+}
+
+.round {
+  margin-bottom: 10px;
+}
+
+.game {
+  border: 1px solid black;
+  margin: 4px;
+  padding: 4px;
+  width: 150px;
+}
+
+select {
+  width: 100%;
+}
+
+.correct { background: green; color: white; }
+.wrong { background: red; color: white; }
+
 </style>
 </head>
 <body>
+
 <h1>Custom March Madness Bracket</h1>
-<div class="bracket-container" id="bracket"></div>
+
+<div id="bracket"></div>
+
 <button onclick="submitBracket()">Submit Bracket</button>
+
 <hr>
+
 <h2>Admin</h2>
-<input type="password" id="pw">
+
+<input id="pw" type="password">
 <button onclick="login()">Login</button>
+
 <div id="admin"></div>
+
+
 <script>
-const ADMIN_PASSWORD='letmein';
-const MASTER_KEY='masterResults';
-const regions=['North','South','East','West'];
-let teams=[];
-let id=1;
-for(let r=0;r<4;r++){
-  for(let s=1;s<=16;s++){
-    teams.push({id:id,region:r,seed:s,name:`(${s}) Team ${id}`});
-    id++;
+
+const ADMIN_PASSWORD = "letmein"
+const MASTER_KEY = "masterResults"
+
+const regions = ["North","South","East","West"]
+
+const seedOrder = [1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15]
+
+let teams = []
+let id = 1
+
+for (let r=0;r<4;r++) {
+  for (let s=1;s<=16;s++) {
+    teams.push({
+      id:id,
+      region:r,
+      seed:s,
+      name:"Seed "+s+" Team "+id
+    })
+    id++
   }
 }
-const seedOrder=[1,16,8,9,5,12,4,13,6,11,3,14,7,10,2,15];
-let picks={};
-let masterResults=JSON.parse(localStorage.getItem(MASTER_KEY)||'{}');
-let gameMap={};
-let bracket={};
-regions.forEach((reg,rIdx)=>{bracket[reg]=[];for(let rnd=0;rnd<6;rnd++) bracket[reg][rnd]=[];});
-// R64
-regions.forEach((reg,rIdx)=>{
-  const rTeams=teams.filter(t=>t.region==rIdx);
-  for(let i=0;i<8;i++){
-    const t1=rTeams.find(t=>t.seed==seedOrder[i*2]);
-    const t2=rTeams.find(t=>t.seed==seedOrder[i*2+1]);
-    const gameId=`${reg}-r0-g${i}`;
-    bracket[reg][0].push({id:gameId,left:t1.id,right:t2.id});
-    gameMap[gameId]={left:t1.id,right:t2.id};
-  }
-});
-// Next rounds
-regions.forEach((reg)=>{
-  for(let rnd=1;rnd<6;rnd++){
-    const prev=bracket[reg][rnd-1];
-    for(let i=0;i<prev.length/2;i++){
-      const gameId=`${reg}-r${rnd}-g${i}`;
-      bracket[reg][rnd].push({id:gameId,left:prev[i*2].id,right:prev[i*2+1].id});
-      gameMap[gameId]={left:prev[i*2].id,right:prev[i*2+1].id};
+
+let picks = {}
+let master = JSON.parse(localStorage.getItem(MASTER_KEY) || "{}")
+
+let games = []
+
+function makeGame(id,left,right,round,region){
+  games.push({id,left,right,round,region})
+}
+
+function buildBracket(){
+
+  regions.forEach((reg,r)=>{
+
+    let rTeams = teams.filter(t=>t.region==r)
+
+    let g = []
+
+    for (let i=0;i<8;i++){
+
+      let t1 = rTeams.find(t=>t.seed==seedOrder[i*2])
+      let t2 = rTeams.find(t=>t.seed==seedOrder[i*2+1])
+
+      let gid = reg+"_r0_"+i
+
+      makeGame(gid,t1.id,t2.id,0,reg)
+
+      g.push(gid)
     }
-  }
-});
-bracket['FF']=[{id:'FF-r0-g0',left:bracket['North'][5][0].id,right:bracket['South'][5][0].id},{id:'FF-r0-g1',left:bracket['East'][5][0].id,right:bracket['West'][5][0].id}];
-bracket['Final']=[{id:'Champ',left:'FF-r0-g0',right:'FF-r0-g1'}];
-bracket['FF'].forEach(g=>gameMap[g.id]={left:g.left,right:g.right});
-bracket['Final'].forEach(g=>gameMap[g.id]={left:g.left,right:g.right});
-let teamMap={};teams.forEach(t=>teamMap[t.id]=t);
-function resolve(id){return teamMap[id]?teamMap[id]:(picks[id]?teamMap[picks[id]]:{id:0,name:'?'});}
+
+    let round = 1
+
+    while (g.length>1){
+
+      let next=[]
+
+      for (let i=0;i<g.length;i+=2){
+
+        let gid = reg+"_r"+round+"_"+i
+
+        makeGame(gid,g[i],g[i+1],round,reg)
+
+        next.push(gid)
+      }
+
+      g=next
+      round++
+    }
+
+  })
+
+}
+
+buildBracket()
+
+let teamMap={}
+teams.forEach(t=>teamMap[t.id]=t)
+
+function resolve(x){
+
+  if (teamMap[x]) return teamMap[x]
+
+  if (picks[x]) return teamMap[picks[x]]
+
+  return {id:0,name:"?"}
+
+}
+
 function drawGame(g){
-  const div=document.createElement('div'); div.className='game';
-  const s=document.createElement('select');
-  [resolve(g.left),resolve(g.right)].forEach(t=>{
-    const o=document.createElement('option'); o.value=t.id; o.text=t.name; s.appendChild(o);
-  });
-  s.value=picks[g.id]||'';
-  s.onchange=()=>{picks[g.id]=s.value; renderBracket();};
-  div.appendChild(s);
-  if(masterResults[g.id]){
-    if(picks[g.id]===masterResults[g.id]) div.className='game correct';
-    else if(picks[g.id]) div.className='game wrong';
-    else div.className='game neutral';
+
+  let div = document.createElement("div")
+  div.className="game"
+
+  let s = document.createElement("select")
+
+  let a = resolve(g.left)
+  let b = resolve(g.right)
+
+  ;[a,b].forEach(t=>{
+    let o=document.createElement("option")
+    o.value=t.id
+    o.text=t.name
+    s.appendChild(o)
+  })
+
+  s.value = picks[g.id] || ""
+
+  s.onchange=()=>{
+    picks[g.id]=s.value
+    render()
   }
-  return div;
+
+  div.appendChild(s)
+
+  if(master[g.id]){
+    if(picks[g.id]==master[g.id]) div.classList.add("correct")
+    else if(picks[g.id]) div.classList.add("wrong")
+  }
+
+  return div
 }
-function renderBracket(){
-  const container=document.getElementById('bracket'); container.innerHTML='';
+
+function render(){
+
+  let root=document.getElementById("bracket")
+  root.innerHTML=""
+
   regions.forEach(reg=>{
-    const qDiv=document.createElement('div'); qDiv.className='quadrant';
-    const rounds=bracket[reg];
-    rounds.forEach(rnd=>{
-      const rdDiv=document.createElement('div'); rdDiv.className='round';
-      rnd.forEach(g=>rdDiv.appendChild(drawGame(g)));
-      qDiv.appendChild(rdDiv);
-    });
-    container.appendChild(qDiv);
-  });
-  ['FF','Final'].forEach(stage=>{
-    const div=document.createElement('div'); div.className='quadrant';
-    bracket[stage].forEach(rnd=>{ rnd.forEach(g=>div.appendChild(drawGame(g)));});
-    container.appendChild(div);
-  });
+
+    let box=document.createElement("div")
+    box.className="region"
+
+    let regGames=games.filter(g=>g.region==reg)
+
+    for(let r=0;r<4;r++){
+
+      let rd=document.createElement("div")
+      rd.className="round"
+
+      regGames
+        .filter(g=>g.round==r)
+        .forEach(g=>rd.appendChild(drawGame(g)))
+
+      box.appendChild(rd)
+    }
+
+    root.appendChild(box)
+  })
+
 }
+
 function submitBracket(){
-  const key='user_'+Date.now(); localStorage.setItem(key,JSON.stringify(picks));
-  const w=window.open();
-  w.document.write('<h1>Your Bracket</h1>');
-  w.document.write('<pre>'+JSON.stringify(picks,null,2)+'</pre>');
+
+  let key="user_"+Date.now()
+
+  localStorage.setItem(key,JSON.stringify(picks))
+
+  let w=window.open()
+
+  w.document.write("<h1>Your Picks</h1>")
+  w.document.write("<pre>"+JSON.stringify(picks,null,2)+"</pre>")
+
 }
+
 function login(){
-  const p=document.getElementById('pw').value; if(p!==ADMIN_PASSWORD)return;
-  const a=document.getElementById('admin'); a.innerHTML='';
-  Object.keys(gameMap).forEach(gid=>{
-    const s=document.createElement('select');
-    Object.values(teamMap).forEach(t=>{const o=document.createElement('option');o.value=t.id;o.text=t.name;s.appendChild(o);});
-    s.value=masterResults[gid]||'';
-    s.onchange=()=>{ masterResults[gid]=s.value; localStorage.setItem(MASTER_KEY,JSON.stringify(masterResults)); renderBracket(); };
-    a.appendChild(document.createTextNode(gid+' ')); a.appendChild(s); a.appendChild(document.createElement('br'));
-  });
+
+  if(document.getElementById("pw").value!==ADMIN_PASSWORD) return
+
+  let a=document.getElementById("admin")
+  a.innerHTML=""
+
+  games.forEach(g=>{
+
+    let s=document.createElement("select")
+
+    teams.forEach(t=>{
+      let o=document.createElement("option")
+      o.value=t.id
+      o.text=t.name
+      s.appendChild(o)
+    })
+
+    s.value=master[g.id]||""
+
+    s.onchange=()=>{
+      master[g.id]=s.value
+      localStorage.setItem(MASTER_KEY,JSON.stringify(master))
+      render()
+    }
+
+    a.append(g.id," ",s,document.createElement("br"))
+
+  })
+
 }
-renderBracket();
-window.addEventListener('storage',(e)=>{if(e.key===MASTER_KEY){try{masterResults=JSON.parse(e.newValue||'{}'); renderBracket();}catch(err){}}});
+
+render()
+
 </script>
+
 </body>
 </html>
