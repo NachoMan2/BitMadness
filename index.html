@@ -140,12 +140,18 @@ teams.forEach(t=>teamMap[t.id]=t)
 
 function resolve(x){
 
-  if (teamMap[x]) return teamMap[x]
+  // If this is already a team id, return team
+  if (teamMap[x]) {
+    return teamMap[x]
+  }
 
-  if (picks[x]) return teamMap[picks[x]]
+  // If this is a game id, use the picked winner
+  if (picks[x] && teamMap[picks[x]]) {
+    return teamMap[picks[x]]
+  }
 
-  return {id:0,name:"?"}
-
+  // Otherwise blank
+  return {id:0,name:""}
 }
 
 function drawGame(g){
