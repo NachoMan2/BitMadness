@@ -175,36 +175,59 @@ for (let r=0;r<4;r++) {
 }
 
 
-function createGame(t1,t2){
 
-  let g = document.createElement("div")
-  g.className="game"
-
-  let a = document.createElement("div")
-  a.className="team"
-  a.textContent="("+t1.seed+") "+t1.name
-
-  let b = document.createElement("div")
-  b.className="team"
-  b.textContent="("+t2.seed+") "+t2.name
-
-  g.appendChild(a)
-  g.appendChild(b)
-
-  return g
-}
-
-
-function createDropdown(){
+function createGame(t1,t2,index,region){
 
   let g = document.createElement("div")
   g.className="game"
 
   let select = document.createElement("select")
 
+  let o1 = document.createElement("option")
+  o1.value = t1.name
+  o1.textContent = "("+t1.seed+") "+t1.name
+
+  let o2 = document.createElement("option")
+  o2.value = t2.name
+  o2.textContent = "("+t2.seed+") "+t2.name
+
+  select.appendChild(o1)
+  select.appendChild(o2)
+
+  select.onchange = () => {
+
+    let r32 = document.querySelectorAll(
+      `[data-region='${region}'][data-round='32'] select`
+    )
+
+    let target = Math.floor(index/2)
+
+    let opt = document.createElement("option")
+    opt.value = select.value
+    opt.textContent = select.value
+
+    r32[target].appendChild(opt)
+
+  }
+
+  g.appendChild(select)
+
+  return g
+}
+
+
+
+function createDropdown(round,region){
+
+  let g = document.createElement("div")
+  g.className="game"
+  g.dataset.round = round
+  g.dataset.region = region
+
+  let select = document.createElement("select")
+
   let blank = document.createElement("option")
-  blank.textContent = "Select"
-  blank.value = ""
+  blank.textContent="Select"
 
   select.appendChild(blank)
 
@@ -214,16 +237,13 @@ function createDropdown(){
 }
 
 
+
 function drawRegion(regionIndex, sideDiv){
 
   let regionTeams = teams.filter(t=>t.region===regionIndex)
 
-  // ROUND 64
-
   let r64 = document.createElement("div")
   r64.className="round r64"
-
-  let firstRoundTeams = []
 
   for(let i=0;i<8;i++){
 
@@ -233,39 +253,31 @@ function drawRegion(regionIndex, sideDiv){
     let t1 = regionTeams.find(t=>t.seed===s1)
     let t2 = regionTeams.find(t=>t.seed===s2)
 
-    r64.appendChild(createGame(t1,t2))
-
-    firstRoundTeams.push(t1, t2)
+    r64.appendChild(createGame(t1,t2,i,regionIndex))
 
   }
 
-
-  // ROUND 32
 
   let r32 = document.createElement("div")
   r32.className="round r32"
 
   for(let i=0;i<4;i++){
-    r32.appendChild(createDropdown())
+    r32.appendChild(createDropdown(32,regionIndex))
   }
 
-
-  // SWEET 16
 
   let r16 = document.createElement("div")
   r16.className="round r16"
 
   for(let i=0;i<2;i++){
-    r16.appendChild(createDropdown())
+    r16.appendChild(createDropdown(16,regionIndex))
   }
 
-
-  // ELITE 8
 
   let r8 = document.createElement("div")
   r8.className="round r8"
 
-  r8.appendChild(createDropdown())
+  r8.appendChild(createDropdown(8,regionIndex))
 
 
   sideDiv.appendChild(r64)
@@ -274,6 +286,7 @@ function drawRegion(regionIndex, sideDiv){
   sideDiv.appendChild(r8)
 
 }
+
 
 
 function drawBracket(){
@@ -293,40 +306,11 @@ function drawBracket(){
   drawRegion(3,right)
 
 
-  // FINAL FOUR
+  let f4 = createDropdown(4,"center")
+  let champGame = createDropdown(2,"center")
+  let champ = createDropdown(1,"center")
 
-  let final4 = document.createElement("div")
-  final4.className="game"
-
-  let fSelect = document.createElement("select")
-  fSelect.innerHTML = "<option>Select</option>"
-
-  final4.appendChild(fSelect)
-
-
-  // CHAMPIONSHIP
-
-  let champGame = document.createElement("div")
-  champGame.className="game"
-
-  let cSelect = document.createElement("select")
-  cSelect.innerHTML = "<option>Select</option>"
-
-  champGame.appendChild(cSelect)
-
-
-  // CHAMPION
-
-  let champ = document.createElement("div")
-  champ.className="game"
-
-  let winner = document.createElement("select")
-  winner.innerHTML = "<option>Champion</option>"
-
-  champ.appendChild(winner)
-
-
-  center.appendChild(final4)
+  center.appendChild(f4)
   center.appendChild(champGame)
   center.appendChild(champ)
 
